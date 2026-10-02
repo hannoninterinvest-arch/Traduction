@@ -21,7 +21,19 @@ describe('document pages', () => {
     expect(text).toContain('Hello');
     expect(text).toContain('DocTranslate');
     expect(pages[0]?.width).toBeGreaterThan(100);
-    expect(pages[0]?.image?.subarray(0, 4).toString('hex')).toBe('89504e47');
+    const image = pages[0]?.image;
+    expect(image?.subarray(0, 4).toString('hex')).toBe('89504e47');
+    const sharp = (await import('sharp')).default;
+    const { data, info } = await sharp(image ?? Buffer.alloc(0))
+      .raw()
+      .toBuffer({ resolveWithObject: true });
+    let dark = 0;
+    for (let i = 0; i < data.length; i += info.channels) {
+      if ((data[i] ?? 255) < 250) dark += 1;
+    }
+    expect(dark).toBeGreaterThan(50);
     expect(pages[0]?.tokens?.[0]?.bbox.w).toBeGreaterThan(1);
+    const token = pages[0]?.tokens?.[0];
+    expect(token && token.bbox.y).toBeLessThan((pages[0]?.height ?? 1) * 0.35);
   });
 });

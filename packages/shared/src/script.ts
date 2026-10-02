@@ -27,7 +27,7 @@ export function charWidthRatio(text: string): number {
     case 'thai':
       return 0.55;
     default:
-      return 0.52;
+      return 0.56;
   }
 }
 

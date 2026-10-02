@@ -10,7 +10,13 @@ export async function paintBackgrounds(png: Buffer, blocks: TextBlock[]): Promis
   });
 }
 
-function medianRing(pixels: Buffer, width: number, height: number, channels: number, bbox: BBox): string {
+function medianRing(
+  pixels: Buffer,
+  width: number,
+  height: number,
+  channels: number,
+  bbox: BBox,
+): string {
   const samples: number[][] = [];
   const x0 = Math.max(0, Math.floor(bbox.x) - 4);
   const y0 = Math.max(0, Math.floor(bbox.y) - 4);

@@ -13,18 +13,19 @@ export function renderPageMarkup(
   page: Pick<JobPage, 'width' | 'height' | 'blocks'>,
   options?: { imageHref?: string | null; title?: string },
 ): string {
-  const blocks = page.blocks
-    .map((block) => blockMarkup(block))
-    .join('');
+  const blocks = page.blocks.map((block) => blockMarkup(block)).join('');
   const image = options?.imageHref
-    ? `<img class="page-bg" alt="" src="${escapeHtml(options.imageHref)}" />`
+    ? `<img class="page-bg" alt="" src="${escapeHtml(options.imageHref)}" style="position:absolute;inset:0;width:100%;height:100%;object-fit:fill" />`
     : '';
-  return `<section class="sheet" style="width:${page.width}px;height:${page.height}px" aria-label="${escapeHtml(options?.title ?? 'Translated page')}">${image}${blocks}</section>`;
+  return `<section class="sheet" style="position:relative;overflow:hidden;width:${page.width}px;height:${page.height}px" aria-label="${escapeHtml(options?.title ?? 'Translated page')}">${image}${blocks}</section>`;
 }
 
 function blockMarkup(block: TextBlock): string {
   const box = block.renderBBox ?? block.bbox;
   const style = [
+    'position:absolute',
+    'margin:0',
+    'overflow:hidden',
     `left:${box.x}px`,
     `top:${box.y}px`,
     `width:${box.w}px`,

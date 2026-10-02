@@ -97,13 +97,32 @@ export function shrinkToFit(input: FitTextInput): FitTextResult {
     freeSpaceBelow(input.bbox, neighbors, pageHeight),
   );
 
+  const preferredLines = wrapText(input.text, innerWidth, estimated);
+  const preferredNeeded = preferredLines.length * estimated * lineHeightRatio;
+  if (preferredNeeded <= innerHeight + availableGrow + 0.5) {
+    const extraHeight = Math.max(0, Math.ceil(preferredNeeded - innerHeight - 0.5));
+    const fontSize = Math.round(estimated * 10) / 10;
+    return {
+      fontSize,
+      lines: preferredLines,
+      lineHeight: Math.round(fontSize * lineHeightRatio * 10) / 10,
+      extraHeight,
+      renderBBox: {
+        x: input.bbox.x,
+        y: input.bbox.y,
+        w: input.bbox.w,
+        h: input.bbox.h + extraHeight,
+      },
+    };
+  }
+
   let low = minFontSize;
   let high = estimated;
   let best = minFontSize;
   for (let step = 0; step < 18; step += 1) {
     const mid = (low + high) / 2;
     const lines = wrapText(input.text, innerWidth, mid);
-    if (fits(lines, mid, lineHeightRatio, innerHeight)) {
+    if (fits(lines, mid, lineHeightRatio, innerHeight + availableGrow)) {
       best = mid;
       low = mid;
     } else {

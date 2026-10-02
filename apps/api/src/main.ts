@@ -13,7 +13,12 @@ export async function createApp(): Promise<INestApplication> {
   const app = await NestFactory.create(AppModule, { bodyParser: false, bufferLogs: true });
   const config = app.get(AppConfig);
   app.useLogger(app.get(Logger));
-  app.use(helmet({ contentSecurityPolicy: config.nodeEnv === 'production' }));
+  app.use(
+    helmet({
+      contentSecurityPolicy: config.nodeEnv === 'production',
+      crossOriginResourcePolicy: { policy: 'cross-origin' },
+    }),
+  );
   const server = app.getHttpAdapter().getInstance() as express.Express;
   server.use('/uploads/direct', express.raw({ type: '*/*', limit: config.maxUploadBytes }));
   server.use(express.json({ limit: '1mb' }));

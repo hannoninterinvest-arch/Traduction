@@ -7,6 +7,7 @@ import {
   fontForLanguage,
   groupTokensIntoBlocks,
   shrinkToFit,
+  type BBox,
   type Job,
   type JobPage,
   type TextBlock,
@@ -66,7 +67,10 @@ export class PipelineService {
       }
       const used = await this.jobs.pagesUsedThisMonth(job.userId);
       const already = job.pageCount;
-      if (this.config.monthlyPageQuota > 0 && used - already + pageCount > this.config.monthlyPageQuota) {
+      if (
+        this.config.monthlyPageQuota > 0 &&
+        used - already + pageCount > this.config.monthlyPageQuota
+      ) {
         throw new AppException(
           'QUOTA_EXCEEDED',
           `Monthly page quota exceeded (limit ${this.config.monthlyPageQuota}).`,
@@ -205,7 +209,10 @@ export class PipelineService {
       current = await this.persist(current, 'rendering');
       const fitted = fitBlocks(current.blocks, job.targetLang, prepared.height);
       const painted = prepared.image ? await paintBackgrounds(prepared.image, fitted) : fitted;
-      current = { ...current, blocks: painted, status: 'done', error: null };
+      current = scalePageForDisplay(
+        { ...current, blocks: painted, status: 'done', error: null },
+        prepared.displayScale,
+      );
       await this.jobs.replacePage(current);
       this.metrics.pagesProcessed += 1;
     }
@@ -219,6 +226,31 @@ export class PipelineService {
     await this.jobs.replacePage(next);
     return next;
   }
+}
+
+function scaleBox(box: BBox, scale: number): BBox {
+  return {
+    x: Math.round(box.x * scale),
+    y: Math.round(box.y * scale),
+    w: Math.max(1, Math.round(box.w * scale)),
+    h: Math.max(1, Math.round(box.h * scale)),
+  };
+}
+
+/** Store geometry in CSS pixels so the browser page matches the original paper size. */
+export function scalePageForDisplay(page: JobPage, scale: number): JobPage {
+  if (scale === 1) return page;
+  return {
+    ...page,
+    width: Math.max(1, Math.round(page.width * scale)),
+    height: Math.max(1, Math.round(page.height * scale)),
+    blocks: page.blocks.map((block) => ({
+      ...block,
+      fontSize: Math.round(block.fontSize * scale * 10) / 10,
+      bbox: scaleBox(block.bbox, scale),
+      renderBBox: scaleBox(block.renderBBox, scale),
+    })),
+  };
 }
 
 export function fitBlocks(

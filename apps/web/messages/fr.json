@@ -1,0 +1,91 @@
+{
+  "brand": "DocTranslate",
+  "nav": {
+    "translate": "Traduire",
+    "history": "Historique",
+    "verify": "Vérifier",
+    "settings": "Réglages",
+    "signIn": "Connexion",
+    "signOut": "Déconnexion"
+  },
+  "landing": {
+    "kicker": "Traduction qui garde la mise en page",
+    "title": "La page reste. La langue change.",
+    "body": "Déposez un contrat, une lettre ou un formulaire scanné. DocTranslate le lit, le traduit, et vous rend un PDF de même format, avec le texte aux mêmes endroits.",
+    "cta": "Commencer une traduction",
+    "secondary": "Vérifier un fichier",
+    "steps": [
+      { "title": "Déposer", "body": "PDF, JPG, PNG ou WEBP part directement vers un stockage privé." },
+      { "title": "Traduire", "body": "Chaque page est lue, regroupée en paragraphes, puis traduite." },
+      { "title": "Exporter", "body": "Téléchargez le PDF mis en page ou les blocs traduits en JSON." }
+    ]
+  },
+  "auth": {
+    "title": "Connexion",
+    "body": "Lien magique ou Google. L’usage anonyme n’est pas proposé.",
+    "email": "E-mail",
+    "magic": "Recevoir un lien",
+    "google": "Continuer avec Google",
+    "dev": "Continuer en démo locale",
+    "sent": "Ouvrez votre boîte mail pour le lien de connexion.",
+    "devHint": "Le mode démo local est actif. Aucun projet Supabase n’est requis."
+  },
+  "dashboard": {
+    "title": "Nouvelle traduction",
+    "drop": "Déposez un scan ici, ou parcourez",
+    "hint": "PDF, JPG, PNG, WEBP · 15 Mo · 20 pages",
+    "target": "Langue cible",
+    "source": "Langue source",
+    "auto": "Détecter automatiquement",
+    "submit": "Traduire",
+    "uploading": "Envoi",
+    "cancel": "Annuler",
+    "waking": "Le serveur se réveille. Cela peut prendre jusqu’à une minute."
+  },
+  "job": {
+    "original": "Original",
+    "translated": "Traduction",
+    "downloadPdf": "Télécharger le PDF",
+    "downloadJson": "Télécharger le JSON",
+    "edit": "Corriger le texte",
+    "save": "Enregistrer le bloc",
+    "fontSize": "Taille du texte",
+    "status": "État",
+    "empty": "En attente de la première page."
+  },
+  "history": {
+    "title": "Historique",
+    "empty": "Aucun document pour le moment.",
+    "open": "Ouvrir",
+    "delete": "Supprimer"
+  },
+  "settings": {
+    "title": "Réglages",
+    "target": "Langue cible par défaut",
+    "save": "Enregistrer",
+    "retention": "Les fichiers et le texte extrait sont supprimés après la durée de rétention (24 h par défaut). Les empreintes d’intégrité restent dans un journal en ajout seul, sans le texte du document.",
+    "erase": "Supprimer mes données",
+    "erased": "Vos documents ont été supprimés."
+  },
+  "verify": {
+    "title": "Vérifier un fichier",
+    "body": "Déposez un fichier pour savoir si son empreinte SHA-256 correspond à une traduction enregistrée sur votre compte.",
+    "check": "Vérifier l’empreinte",
+    "match": "Ce fichier correspond à un enregistrement.",
+    "miss": "Aucun enregistrement ne correspond à ce fichier."
+  },
+  "status": {
+    "queued": "En file",
+    "processing": "En cours",
+    "ocr": "Lecture",
+    "translating": "Traduction",
+    "rendering": "Placement",
+    "done": "Terminé",
+    "failed": "Échec",
+    "cancelled": "Annulé"
+  },
+  "errors": {
+    "generic": "Une erreur est survenue. Réessayez.",
+    "boundary": "Cet écran a rencontré une erreur inattendue."
+  }
+}

@@ -1,0 +1,91 @@
+{
+  "brand": "DocTranslate",
+  "nav": {
+    "translate": "Translate",
+    "history": "History",
+    "verify": "Verify",
+    "settings": "Settings",
+    "signIn": "Sign in",
+    "signOut": "Sign out"
+  },
+  "landing": {
+    "kicker": "Layout-preserving translation",
+    "title": "The page stays. The language changes.",
+    "body": "Drop a scanned contract, letter, or form. DocTranslate reads it, translates it, and gives you a PDF with the same page size and the same text positions.",
+    "cta": "Start a translation",
+    "secondary": "Verify a file",
+    "steps": [
+      { "title": "Upload", "body": "PDF, JPG, PNG, or WEBP goes straight to private storage." },
+      { "title": "Translate", "body": "Each page is read, grouped into paragraphs, and translated." },
+      { "title": "Export", "body": "Download a laid-out PDF or the translated blocks as JSON." }
+    ]
+  },
+  "auth": {
+    "title": "Sign in",
+    "body": "Magic link or Google. Anonymous use is not available.",
+    "email": "Email",
+    "magic": "Email me a link",
+    "google": "Continue with Google",
+    "dev": "Continue in local demo",
+    "sent": "Check your inbox for the sign-in link.",
+    "devHint": "Local demo mode is on. No Supabase project is required."
+  },
+  "dashboard": {
+    "title": "New translation",
+    "drop": "Drop a scan here, or browse",
+    "hint": "PDF, JPG, PNG, WEBP · 15 MB · 20 pages",
+    "target": "Target language",
+    "source": "Source language",
+    "auto": "Detect automatically",
+    "submit": "Translate",
+    "uploading": "Uploading",
+    "cancel": "Cancel",
+    "waking": "The server is waking up. This can take up to a minute."
+  },
+  "job": {
+    "original": "Original",
+    "translated": "Translated",
+    "downloadPdf": "Download PDF",
+    "downloadJson": "Download JSON",
+    "edit": "Edit text",
+    "save": "Save block",
+    "fontSize": "Font size",
+    "status": "Status",
+    "empty": "Waiting for the first page."
+  },
+  "history": {
+    "title": "History",
+    "empty": "No documents yet.",
+    "open": "Open",
+    "delete": "Delete"
+  },
+  "settings": {
+    "title": "Settings",
+    "target": "Default target language",
+    "save": "Save",
+    "retention": "Files and extracted text are deleted after the retention window (24 hours by default). Integrity hashes stay in an append-only log and do not include document text.",
+    "erase": "Delete my data",
+    "erased": "Your documents were deleted."
+  },
+  "verify": {
+    "title": "Verify a file",
+    "body": "Upload a file to check whether its SHA-256 matches a translation recorded for your account.",
+    "check": "Check hash",
+    "match": "This file matches a stored record.",
+    "miss": "No stored record matches this file."
+  },
+  "status": {
+    "queued": "Queued",
+    "processing": "Processing",
+    "ocr": "Reading",
+    "translating": "Translating",
+    "rendering": "Placing text",
+    "done": "Done",
+    "failed": "Failed",
+    "cancelled": "Cancelled"
+  },
+  "errors": {
+    "generic": "Something went wrong. Please try again.",
+    "boundary": "This screen hit an unexpected error."
+  }
+}
