@@ -9,7 +9,7 @@ import {
   type JobSummary,
   type UserPreferences,
 } from '@doctranslate/shared';
-import type { JobRepository } from './job.repository';
+import type { HashMatch, JobRepository } from './job.repository';
 
 const sha256 = (payload: string) => createHash('sha256').update(payload).digest('hex');
 
@@ -104,6 +104,47 @@ export class MemoryJobRepository implements JobRepository {
 
   async listAuditForUser(userId: string): Promise<AuditEntry[]> {
     return this.audit.filter((entry) => entry.userId === userId).map((entry) => ({ ...entry }));
+  }
+
+  async findByContentHash(userId: string, hash: string): Promise<HashMatch[]> {
+    const needle = hash.toLowerCase();
+    const matches: HashMatch[] = [];
+    for (const job of this.jobs.values()) {
+      if (job.userId !== userId) continue;
+      if (job.originalHash?.toLowerCase() === needle) {
+        matches.push({
+          jobId: job.id,
+          source: 'job',
+          field: 'original',
+          action: null,
+          createdAt: job.createdAt,
+        });
+      }
+      if (job.outputHash?.toLowerCase() === needle) {
+        matches.push({
+          jobId: job.id,
+          source: 'job',
+          field: 'output',
+          action: null,
+          createdAt: job.updatedAt,
+        });
+      }
+    }
+    for (const entry of this.audit) {
+      if (entry.userId !== userId) continue;
+      for (const [key, value] of Object.entries(entry.metadata ?? {})) {
+        if (typeof value === 'string' && value.toLowerCase() === needle) {
+          matches.push({
+            jobId: entry.jobId,
+            source: 'audit',
+            field: key,
+            action: entry.action,
+            createdAt: entry.timestamp,
+          });
+        }
+      }
+    }
+    return matches;
   }
 
   async getPreferences(userId: string): Promise<UserPreferences> {

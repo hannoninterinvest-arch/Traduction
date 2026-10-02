@@ -14,7 +14,7 @@ import {
   type UserPreferences,
 } from '@doctranslate/shared';
 import { AppConfig } from '../config/env';
-import type { JobRepository } from './job.repository';
+import type { HashMatch, JobRepository } from './job.repository';
 
 const sha256 = (payload: string) => createHash('sha256').update(payload).digest('hex');
 
@@ -184,6 +184,63 @@ export class SupabaseJobRepository implements JobRepository {
       () => undefined,
     );
     return run;
+  }
+
+  async findByContentHash(userId: string, hash: string): Promise<HashMatch[]> {
+    const needle = hash.toLowerCase();
+    const matches: HashMatch[] = [];
+    const { data: jobs, error } = await this.client
+      .from('jobs')
+      .select('id, original_hash, output_hash, created_at, updated_at')
+      .eq('user_id', userId)
+      .or(`original_hash.eq.${needle},output_hash.eq.${needle}`);
+    this.assert(error, 'find job hash');
+    for (const row of (jobs ?? []) as Array<{
+      id?: string | null;
+      original_hash?: string | null;
+      output_hash?: string | null;
+      created_at?: string | null;
+      updated_at?: string | null;
+    }>) {
+      if (row.original_hash?.toLowerCase() === needle) {
+        matches.push({
+          jobId: row.id ?? null,
+          source: 'job',
+          field: 'original',
+          action: null,
+          createdAt: row.created_at ?? '',
+        });
+      }
+      if (row.output_hash?.toLowerCase() === needle) {
+        matches.push({
+          jobId: row.id ?? null,
+          source: 'job',
+          field: 'output',
+          action: null,
+          createdAt: row.updated_at ?? '',
+        });
+      }
+    }
+    const { data: audit, error: auditError } = await this.client
+      .from('audit_log')
+      .select('job_id, action, metadata, created_at')
+      .eq('user_id', userId);
+    this.assert(auditError, 'find audit hash');
+    for (const row of (audit ?? []) as Array<Record<string, unknown>>) {
+      const metadata = (row.metadata as Record<string, unknown> | null) ?? {};
+      for (const [key, value] of Object.entries(metadata)) {
+        if (typeof value === 'string' && value.toLowerCase() === needle) {
+          matches.push({
+            jobId: (row.job_id as string | null) ?? null,
+            source: 'audit',
+            field: key,
+            action: String(row.action),
+            createdAt: String(row.created_at),
+          });
+        }
+      }
+    }
+    return matches;
   }
 
   async listAuditForUser(userId: string): Promise<AuditEntry[]> {

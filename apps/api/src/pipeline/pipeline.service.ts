@@ -17,6 +17,7 @@ import { AppException } from '../common/app.exception';
 import { AppConfig } from '../config/env';
 import { JOB_REPOSITORY, type JobRepository } from '../database/job.repository';
 import { MetricsService } from '../metrics/metrics.service';
+import { AnchorService } from '../integrity/anchor.service';
 import { paintBackgrounds } from './background';
 import { DocumentService, type PreparedPage } from './document.service';
 import { OcrEngine, TranslationEngine } from '../providers/engines';
@@ -34,6 +35,7 @@ export class PipelineService {
     private readonly ocr: OcrEngine,
     private readonly translator: TranslationEngine,
     private readonly documents: DocumentService,
+    private readonly anchor: AnchorService,
   ) {}
 
   async run(jobId: string): Promise<void> {
@@ -124,12 +126,15 @@ export class PipelineService {
       });
       if (!failed) {
         this.metrics.jobsCompleted += 1;
-        await this.jobs.appendAudit({
+        const entry = await this.jobs.appendAudit({
           jobId: job.id,
           userId: job.userId,
           action: 'job.completed',
           timestamp: new Date().toISOString(),
           metadata: { originalHash, outputHash, pages: prepared.length },
+        });
+        await this.anchor.anchor(entry.hash).catch(() => {
+          this.logger.warn({ jobId: job.id }, 'anchor skipped');
         });
       } else {
         this.metrics.jobsFailed += 1;

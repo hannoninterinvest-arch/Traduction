@@ -109,6 +109,25 @@ describe('job engine', () => {
       .expect(200);
     expect(listed.body.map((job: { id: string }) => job.id)).toContain(jobId);
 
+    const verified = await request(app.getHttpServer())
+      .post('/verify')
+      .set('Authorization', AUTH)
+      .send({ hash: finished.originalHash })
+      .expect(201);
+    expect(verified.body.match).toBe(true);
+    const missing = await request(app.getHttpServer())
+      .post('/verify')
+      .set('Authorization', AUTH)
+      .send({ hash: 'ab'.repeat(32) })
+      .expect(201);
+    expect(missing.body.match).toBe(false);
+    const audit = await request(app.getHttpServer())
+      .get('/audit')
+      .set('Authorization', AUTH)
+      .expect(200);
+    expect(audit.body.valid).toBe(true);
+    expect(audit.body.entries.length).toBeGreaterThan(0);
+
     await request(app.getHttpServer())
       .delete(`/jobs/${jobId}`)
       .set('Authorization', AUTH)

@@ -9,6 +9,7 @@ import { UserThrottlerGuard } from './common/throttler.guard';
 import { AppConfigModule } from './config/config.module';
 import { DatabaseModule } from './database/database.module';
 import { HealthController } from './health/health.controller';
+import { IntegrityModule } from './integrity/integrity.module';
 import { JobsModule } from './jobs/jobs.module';
 import { MetricsModule } from './metrics/metrics.module';
 import { StorageController } from './storage/storage.controller';
@@ -35,6 +36,7 @@ import { UsersController } from './users/users.controller';
     DatabaseModule,
     StorageModule,
     MetricsModule,
+    IntegrityModule,
     JobsModule,
   ],
   controllers: [HealthController, UploadsController, UsersController, StorageController],
