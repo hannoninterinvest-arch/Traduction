@@ -1,5 +1,5 @@
-import type { BBox } from './types.js';
-import { charWidthRatio, widthClass } from './script.js';
+import type { BBox } from './types';
+import { charWidthRatio, widthClass } from './script';
 
 export interface FitTextInput {
   text: string;

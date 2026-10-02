@@ -1,4 +1,4 @@
-import type { SupportedMime } from './types.js';
+import type { SupportedMime } from './types';
 
 export function detectMime(bytes: Uint8Array): SupportedMime | null {
   if (

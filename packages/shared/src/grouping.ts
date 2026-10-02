@@ -1,6 +1,6 @@
-import type { BBox, OcrToken, TextBlock } from './types.js';
-import { fontForLanguage } from './fonts.js';
-import { isRtlText, joinsWithoutSpace } from './script.js';
+import type { BBox, OcrToken, TextBlock } from './types';
+import { fontForLanguage } from './fonts';
+import { isRtlText, joinsWithoutSpace } from './script';
 
 export interface GroupingOptions {
   pageIndex?: number;

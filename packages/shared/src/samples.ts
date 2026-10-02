@@ -1,4 +1,4 @@
-import type { BBox, OcrToken } from './types.js';
+import type { BBox, OcrToken } from './types';
 
 export type SampleKind = 'en' | 'ar' | 'de';
 

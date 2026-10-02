@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { JOB_STATUSES, MIME_TYPES, PAGE_STATUSES } from './types.js';
+import { JOB_STATUSES, MIME_TYPES, PAGE_STATUSES } from './types';
 
 export const bboxSchema = z.object({
   x: z.number(),

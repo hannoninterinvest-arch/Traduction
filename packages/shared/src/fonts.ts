@@ -1,4 +1,4 @@
-import { getLanguage, type LanguageInfo } from './languages.js';
+import { getLanguage, type LanguageInfo } from './languages';
 
 export interface FontChoice {
   family: string;

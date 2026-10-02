@@ -1,4 +1,4 @@
-import type { AuditEntry, AuditEntryInput } from './types.js';
+import type { AuditEntry, AuditEntryInput } from './types';
 
 export const GENESIS_HASH = '0'.repeat(64);
 

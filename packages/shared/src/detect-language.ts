@@ -1,4 +1,4 @@
-import { iso6393To1 } from './languages.js';
+import { iso6393To1 } from './languages';
 
 function heuristicLanguage(text: string): string | null {
   const sample = text.trim();
