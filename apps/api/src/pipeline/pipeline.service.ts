@@ -6,18 +6,19 @@ import {
   findDangerousPdfFeatures,
   fontForLanguage,
   groupTokensIntoBlocks,
-  sampleTokens,
   shrinkToFit,
   type Job,
   type JobPage,
   type OcrToken,
   type SupportedMime,
   type TextBlock,
+  type TranslationContext,
 } from '@doctranslate/shared';
 import { AppException } from '../common/app.exception';
 import { AppConfig } from '../config/env';
 import { JOB_REPOSITORY, type JobRepository } from '../database/job.repository';
 import { MetricsService } from '../metrics/metrics.service';
+import { OcrEngine, TranslationEngine } from '../providers/engines';
 import { OBJECT_STORAGE, type ObjectStorage } from '../storage/storage.service';
 
 @Injectable()
@@ -29,6 +30,8 @@ export class PipelineService {
     @Inject(OBJECT_STORAGE) private readonly storage: ObjectStorage,
     private readonly metrics: MetricsService,
     private readonly config: AppConfig,
+    private readonly ocr: OcrEngine,
+    private readonly translator: TranslationEngine,
   ) {}
 
   async run(jobId: string): Promise<void> {
@@ -52,7 +55,7 @@ export class PipelineService {
         });
       }
       const originalHash = createHash('sha256').update(file).digest('hex');
-      const prepared = this.preparePages(file, mime, job.sourceLang);
+      const prepared = this.preparePages(file, mime);
       if (prepared.length > this.config.maxPages) {
         throw new AppException(
           'TOO_MANY_PAGES',
@@ -74,18 +77,14 @@ export class PipelineService {
       }
       await this.jobs.updateJob(job.id, { originalHash, pageCount: prepared.length });
       let detected: string | null = job.detectedLang;
+      let glossary: TranslationContext['glossary'] = [];
       for (const preparedPage of prepared) {
         const fresh = await this.jobs.getJob(job.id);
         const page = fresh?.pages.find((item) => item.pageIndex === preparedPage.index);
         if (!page || page.status === 'done') continue;
-        const sourceText = await this.processPage(
-          job,
-          page,
-          preparedPage.tokens,
-          preparedPage.width,
-          preparedPage.height,
-        );
-        if (!detected) detected = await detectLanguage(sourceText);
+        const outcome = await this.processPage(job, page, preparedPage, glossary, detected);
+        glossary = outcome.glossary;
+        detected = outcome.detected ?? detected;
       }
       const finished = await this.jobs.getJob(job.id);
       const outputHash = createHash('sha256')
@@ -133,48 +132,67 @@ export class PipelineService {
   private preparePages(
     file: Buffer,
     mime: SupportedMime,
-    sourceLang: string,
-  ): Array<{ index: number; width: number; height: number; tokens: OcrToken[] }> {
-    const kind =
-      sourceLang === 'ar' || sourceLang === 'de' || sourceLang === 'en' ? sourceLang : 'en';
-    if (mime === 'application/pdf') {
-      const text = file.toString('latin1');
-      const pageMarkers = text.match(/\/Type\s*\/Page(?!s)/g);
-      const count = Math.max(1, pageMarkers?.length ?? 1);
-      return Array.from({ length: count }, (_item, index) => ({
-        index,
-        width: 700,
-        height: 900,
-        tokens: sampleTokens(kind),
-      }));
-    }
-    return [{ index: 0, width: 700, height: 900, tokens: sampleTokens(kind) }];
+  ): Array<{
+    index: number;
+    width: number;
+    height: number;
+    image: Buffer;
+    tokens: OcrToken[] | null;
+  }> {
+    const count =
+      mime === 'application/pdf'
+        ? Math.max(1, file.toString('latin1').match(/\/Type\s*\/Page(?!s)/g)?.length ?? 1)
+        : 1;
+    return Array.from({ length: count }, (_item, index) => ({
+      index,
+      width: 700,
+      height: 900,
+      image: file,
+      tokens: null,
+    }));
   }
 
   private async processPage(
     job: Job,
     page: JobPage,
-    tokens: OcrToken[],
-    width: number,
-    height: number,
-  ): Promise<string> {
-    let current: JobPage = { ...page, width, height, blocks: page.blocks };
+    prepared: { width: number; height: number; image: Buffer; tokens: OcrToken[] | null },
+    glossary: TranslationContext['glossary'],
+    detected: string | null,
+  ): Promise<{ glossary: TranslationContext['glossary']; detected: string | null }> {
+    let current: JobPage = {
+      ...page,
+      width: prepared.width,
+      height: prepared.height,
+      blocks: page.blocks,
+    };
+    const hints = job.sourceLang === 'auto' ? ['en', 'ar', 'fr', 'de'] : [job.sourceLang];
     if (current.status === 'queued' || current.status === 'failed' || current.status === 'ocr') {
       current = await this.persist(current, 'ocr');
-      const blocks = groupTokensIntoBlocks(tokens, {
+      const recognized = prepared.tokens
+        ? { tokens: prepared.tokens, language: null as string | null }
+        : await this.ocr.recognize(prepared.image, hints);
+      const blocks = groupTokensIntoBlocks(recognized.tokens, {
         pageIndex: current.pageIndex,
         sourceLang: job.sourceLang,
       });
+      if (!detected && recognized.language) detected = recognized.language;
       current = { ...current, blocks, status: 'translating', error: null };
       await this.jobs.replacePage(current);
     }
     if (current.status === 'translating') {
       current = await this.persist(current, 'translating');
+      const sourceLang = job.sourceLang === 'auto' ? (detected ?? 'auto') : job.sourceLang;
+      const translated = await this.translator.translate(
+        current.blocks.map((block) => ({ id: block.id, text: block.text })),
+        { glossary, pageIndex: current.pageIndex, sourceLang, targetLang: job.targetLang },
+      );
+      const byId = new Map(translated.blocks.map((block) => [block.id, block.text]));
+      glossary = translated.glossary;
       current = {
         ...current,
         blocks: current.blocks.map((block) => ({
           ...block,
-          translatedText: `[${job.targetLang}] ${block.text}`,
+          translatedText: byId.get(block.id) ?? block.translatedText,
         })),
         status: 'rendering',
       };
@@ -182,12 +200,13 @@ export class PipelineService {
     }
     if (current.status === 'rendering') {
       current = await this.persist(current, 'rendering');
-      const fitted = fitBlocks(current.blocks, job.targetLang, height);
+      const fitted = fitBlocks(current.blocks, job.targetLang, prepared.height);
       current = { ...current, blocks: fitted, status: 'done', error: null };
       await this.jobs.replacePage(current);
       this.metrics.pagesProcessed += 1;
     }
-    return current.blocks.map((block) => block.text).join('\n');
+    const text = current.blocks.map((block) => block.text).join('\n');
+    return { glossary, detected: detected ?? (await detectLanguage(text)) };
   }
 
   private async persist(page: JobPage, status: JobPage['status']): Promise<JobPage> {

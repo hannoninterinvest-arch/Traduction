@@ -21,4 +21,5 @@ module.exports = {
     ],
   },
   moduleFileExtensions: ['ts', 'js', 'json'],
+  maxWorkers: 1,
 };
