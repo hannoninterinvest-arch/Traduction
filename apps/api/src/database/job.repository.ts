@@ -18,6 +18,7 @@ export interface JobRepository {
   listExpired(cutoffIso: string): Promise<Job[]>;
   deleteJob(id: string): Promise<void>;
   replacePage(page: JobPage): Promise<void>;
+  insertPage(page: JobPage): Promise<void>;
   pagesUsedThisMonth(userId: string): Promise<number>;
   appendAudit(input: AuditEntryInput): Promise<AuditEntry>;
   listAuditForUser(userId: string): Promise<AuditEntry[]>;

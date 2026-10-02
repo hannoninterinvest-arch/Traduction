@@ -63,6 +63,13 @@ export class MemoryJobRepository implements JobRepository {
     this.jobs.delete(id);
   }
 
+  async insertPage(page: JobPage): Promise<void> {
+    const job = this.jobs.get(page.jobId);
+    if (!job || job.pages.some((current) => current.pageIndex === page.pageIndex)) return;
+    job.pages.push(structuredClone(page));
+    job.pages.sort((a, b) => a.pageIndex - b.pageIndex);
+  }
+
   async replacePage(page: JobPage): Promise<void> {
     const job = this.jobs.get(page.jobId);
     if (!job) return;

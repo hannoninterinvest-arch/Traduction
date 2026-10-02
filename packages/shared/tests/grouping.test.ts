@@ -1,5 +1,6 @@
 import { groupTokensIntoBlocks } from '../src/grouping';
 import { sampleTokens } from '../src/samples';
+import type { OcrToken } from '../src/types';
 
 describe('groupTokensIntoBlocks', () => {
   it('merges an English paragraph and keeps the title separate', () => {
@@ -36,5 +37,14 @@ describe('groupTokensIntoBlocks', () => {
     expect(blocks.length).toBeGreaterThanOrEqual(10);
     const joined = texts.join(' | ');
     expect(joined.includes('Artikel Menge Preis')).toBe(false);
+  });
+
+  it('keeps bold when most tokens in a block are bold', () => {
+    const tokens: OcrToken[] = [
+      { text: 'Bold', bbox: { x: 10, y: 10, w: 40, h: 20 }, confidence: 1, fontWeight: 'bold' },
+      { text: 'title', bbox: { x: 56, y: 10, w: 40, h: 20 }, confidence: 1, fontWeight: 'bold' },
+    ];
+    const blocks = groupTokensIntoBlocks(tokens);
+    expect(blocks[0]?.fontWeight).toBe('bold');
   });
 });

@@ -1,11 +1,19 @@
 import type { INestApplication } from '@nestjs/common';
+import { PDFDocument, StandardFonts } from 'pdf-lib';
 import request from 'supertest';
 import { createApp } from '../src/main';
 import { MetricsService } from '../src/metrics/metrics.service';
 
 const USER = '00000000-0000-4000-8000-000000000001';
 const AUTH = `Bearer dev:${USER}`;
-const PDF = Buffer.from('%PDF-1.4\n1 0 obj << /Type /Catalog >> endobj\ntrailer <<>>\n%%EOF');
+
+async function samplePdf(): Promise<Buffer> {
+  const pdf = await PDFDocument.create();
+  const page = pdf.addPage([600, 800]);
+  const font = await pdf.embedFont(StandardFonts.Helvetica);
+  page.drawText('Hello from DocTranslate', { x: 72, y: 720, size: 24, font });
+  return Buffer.from(await pdf.save());
+}
 
 describe('job engine', () => {
   let app: INestApplication;
@@ -32,6 +40,7 @@ describe('job engine', () => {
   });
 
   it('uploads, translates, and keeps per-page stages', async () => {
+    const PDF = await samplePdf();
     const signed = await request(app.getHttpServer())
       .post('/uploads/sign')
       .set('Authorization', AUTH)

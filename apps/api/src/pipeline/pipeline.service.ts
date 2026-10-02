@@ -1,5 +1,5 @@
 import { Inject, Injectable, Logger } from '@nestjs/common';
-import { createHash } from 'node:crypto';
+import { createHash, randomUUID } from 'node:crypto';
 import {
   detectLanguage,
   detectMime,
@@ -9,8 +9,6 @@ import {
   shrinkToFit,
   type Job,
   type JobPage,
-  type OcrToken,
-  type SupportedMime,
   type TextBlock,
   type TranslationContext,
 } from '@doctranslate/shared';
@@ -18,6 +16,7 @@ import { AppException } from '../common/app.exception';
 import { AppConfig } from '../config/env';
 import { JOB_REPOSITORY, type JobRepository } from '../database/job.repository';
 import { MetricsService } from '../metrics/metrics.service';
+import { DocumentService, type PreparedPage } from './document.service';
 import { OcrEngine, TranslationEngine } from '../providers/engines';
 import { OBJECT_STORAGE, type ObjectStorage } from '../storage/storage.service';
 
@@ -32,6 +31,7 @@ export class PipelineService {
     private readonly config: AppConfig,
     private readonly ocr: OcrEngine,
     private readonly translator: TranslationEngine,
+    private readonly documents: DocumentService,
   ) {}
 
   async run(jobId: string): Promise<void> {
@@ -55,37 +55,57 @@ export class PipelineService {
         });
       }
       const originalHash = createHash('sha256').update(file).digest('hex');
-      const prepared = this.preparePages(file, mime);
-      if (prepared.length > this.config.maxPages) {
+      const pageCount = await this.documents.countPages(file, mime);
+      if (pageCount > this.config.maxPages) {
         throw new AppException(
           'TOO_MANY_PAGES',
-          `This document has ${prepared.length} pages. The limit is ${this.config.maxPages}.`,
+          `This document has ${pageCount} pages. The limit is ${this.config.maxPages}.`,
           400,
         );
       }
       const used = await this.jobs.pagesUsedThisMonth(job.userId);
       const already = job.pageCount;
-      if (
-        this.config.monthlyPageQuota > 0 &&
-        used - already + prepared.length > this.config.monthlyPageQuota
-      ) {
+      if (this.config.monthlyPageQuota > 0 && used - already + pageCount > this.config.monthlyPageQuota) {
         throw new AppException(
           'QUOTA_EXCEEDED',
           `Monthly page quota exceeded (limit ${this.config.monthlyPageQuota}).`,
           429,
         );
       }
-      await this.jobs.updateJob(job.id, { originalHash, pageCount: prepared.length });
+      await this.jobs.updateJob(job.id, { originalHash, pageCount });
       let detected: string | null = job.detectedLang;
       let glossary: TranslationContext['glossary'] = [];
-      for (const preparedPage of prepared) {
+      let processed = 0;
+      for await (const preparedPage of this.documents.eachPage(file, mime)) {
         const fresh = await this.jobs.getJob(job.id);
-        const page = fresh?.pages.find((item) => item.pageIndex === preparedPage.index);
-        if (!page || page.status === 'done') continue;
+        let page = fresh?.pages.find((item) => item.pageIndex === preparedPage.index) ?? null;
+        if (!page) {
+          page = {
+            id: randomUUID(),
+            jobId: job.id,
+            pageIndex: preparedPage.index,
+            status: 'queued',
+            width: preparedPage.width,
+            height: preparedPage.height,
+            imagePath: null,
+            blocks: [],
+            error: null,
+          };
+          await this.jobs.insertPage(page);
+        }
+        if (page.status === 'done') continue;
+        if (preparedPage.image) {
+          const imagePath = `${job.userId}/${job.id}/page-${preparedPage.index}.png`;
+          await this.storage.save(imagePath, preparedPage.image, 'image/png');
+          page = { ...page, imagePath };
+        }
         const outcome = await this.processPage(job, page, preparedPage, glossary, detected);
         glossary = outcome.glossary;
         detected = outcome.detected ?? detected;
+        preparedPage.image = null;
+        processed += 1;
       }
+      const prepared = { length: processed || pageCount };
       const finished = await this.jobs.getJob(job.id);
       const outputHash = createHash('sha256')
         .update(JSON.stringify(finished?.pages.map((page) => page.blocks) ?? []))
@@ -129,33 +149,10 @@ export class PipelineService {
     }
   }
 
-  private preparePages(
-    file: Buffer,
-    mime: SupportedMime,
-  ): Array<{
-    index: number;
-    width: number;
-    height: number;
-    image: Buffer;
-    tokens: OcrToken[] | null;
-  }> {
-    const count =
-      mime === 'application/pdf'
-        ? Math.max(1, file.toString('latin1').match(/\/Type\s*\/Page(?!s)/g)?.length ?? 1)
-        : 1;
-    return Array.from({ length: count }, (_item, index) => ({
-      index,
-      width: 700,
-      height: 900,
-      image: file,
-      tokens: null,
-    }));
-  }
-
   private async processPage(
     job: Job,
     page: JobPage,
-    prepared: { width: number; height: number; image: Buffer; tokens: OcrToken[] | null },
+    prepared: PreparedPage,
     glossary: TranslationContext['glossary'],
     detected: string | null,
   ): Promise<{ glossary: TranslationContext['glossary']; detected: string | null }> {
@@ -170,7 +167,12 @@ export class PipelineService {
       current = await this.persist(current, 'ocr');
       const recognized = prepared.tokens
         ? { tokens: prepared.tokens, language: null as string | null }
-        : await this.ocr.recognize(prepared.image, hints);
+        : prepared.image
+          ? await this.ocr.recognize(prepared.image, hints)
+          : null;
+      if (!recognized || recognized.tokens.length === 0) {
+        throw new AppException('PROVIDER_FAILURE', 'No text was found on this page.', 502);
+      }
       const blocks = groupTokensIntoBlocks(recognized.tokens, {
         pageIndex: current.pageIndex,
         sourceLang: job.sourceLang,

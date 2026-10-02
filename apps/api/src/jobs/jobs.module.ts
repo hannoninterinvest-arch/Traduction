@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { DatabaseModule } from '../database/database.module';
+import { DocumentService } from '../pipeline/document.service';
 import { PipelineService } from '../pipeline/pipeline.service';
 import { OcrEngine, TranslationEngine } from '../providers/engines';
 import { StorageModule } from '../storage/storage.module';
@@ -10,7 +11,7 @@ import { JobsService } from './jobs.service';
 @Module({
   imports: [DatabaseModule, StorageModule],
   controllers: [JobsController],
-  providers: [JobsService, JobWorker, PipelineService, OcrEngine, TranslationEngine],
+  providers: [JobsService, JobWorker, PipelineService, DocumentService, OcrEngine, TranslationEngine],
   exports: [JobsService, JobWorker],
 })
 export class JobsModule {}

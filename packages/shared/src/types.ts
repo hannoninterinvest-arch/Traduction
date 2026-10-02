@@ -27,6 +27,8 @@ export interface OcrToken {
   confidence: number;
   lineId?: string;
   rtl?: boolean;
+  fontWeight?: 'normal' | 'bold';
+  fontStyle?: 'normal' | 'italic';
 }
 
 export interface TextBlock {

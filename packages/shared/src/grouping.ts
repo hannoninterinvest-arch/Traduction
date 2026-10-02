@@ -165,6 +165,8 @@ function toBlock(segment: Segment, id: string, sourceLang?: string): TextBlock {
   const lang = sourceLang && sourceLang !== 'auto' ? sourceLang : segment.rtl ? 'ar' : 'en';
   const font = fontForLanguage(segment.rtl ? 'ar' : lang);
   const direction = segment.rtl ? 'rtl' : 'ltr';
+  const bold = segment.tokens.filter((token) => token.fontWeight === 'bold').length > segment.tokens.length / 2;
+  const italic = segment.tokens.filter((token) => token.fontStyle === 'italic').length > segment.tokens.length / 2;
   return {
     id,
     text: segment.text,
@@ -176,8 +178,8 @@ function toBlock(segment: Segment, id: string, sourceLang?: string): TextBlock {
     direction,
     fontFamily: font.family,
     fontSize: Math.max(8, Math.round(segment.bbox.h * 0.72)),
-    fontWeight: 'normal',
-    fontStyle: 'normal',
+    fontWeight: bold ? 'bold' : 'normal',
+    fontStyle: italic ? 'italic' : 'normal',
     color: '#1a1814',
     backgroundColor: '#ffffff',
     align: direction === 'rtl' ? 'right' : 'left',

@@ -134,6 +134,11 @@ export class SupabaseJobRepository implements JobRepository {
     this.assert(error, 'delete job');
   }
 
+  async insertPage(page: JobPage): Promise<void> {
+    const { error } = await this.client.from('job_pages').insert(this.toPageRow(page));
+    this.assert(error, 'insert page');
+  }
+
   async replacePage(page: JobPage): Promise<void> {
     const { error } = await this.client
       .from('job_pages')
