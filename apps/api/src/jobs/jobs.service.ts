@@ -21,6 +21,7 @@ import { AppConfig } from '../config/env';
 import { JOB_REPOSITORY, type JobRepository } from '../database/job.repository';
 import { MetricsService } from '../metrics/metrics.service';
 import { OBJECT_STORAGE, type ObjectStorage } from '../storage/storage.service';
+import { documentHtml, renderServerPdf } from '../pipeline/server-pdf';
 import { JobWorker } from './job.worker';
 
 export interface PageView extends JobPage {
@@ -146,6 +147,20 @@ export class JobsService {
     }
     this.worker.enqueue(id);
     return this.get(userId, id);
+  }
+
+  async serverPdf(userId: string, id: string): Promise<{ mode: 'server'; pdfBase64: string } | { mode: 'client' }> {
+    if (this.config.pdfRenderer !== 'server') return { mode: 'client' };
+    const job = await this.requireOwned(userId, id);
+    const hrefs = await Promise.all(
+      job.pages.map(async (page) => {
+        if (!page.imagePath) return null;
+        const bytes = await this.storage.read(page.imagePath);
+        return `data:image/png;base64,${bytes.toString('base64')}`;
+      }),
+    );
+    const pdf = await renderServerPdf(documentHtml(job.pages, hrefs));
+    return { mode: 'server', pdfBase64: pdf.toString('base64') };
   }
 
   async remove(userId: string, id: string): Promise<{ ok: true }> {

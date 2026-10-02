@@ -34,6 +34,11 @@ export class JobsController {
     return this.jobs.remove(user.id, id);
   }
 
+  @Get(':id/server-pdf')
+  serverPdf(@CurrentUser() user: AuthUser, @Param('id') id: string) {
+    return this.jobs.serverPdf(user.id, id);
+  }
+
   @Patch(':id/pages/:pageId/blocks/:blockId')
   updateBlock(
     @CurrentUser() user: AuthUser,

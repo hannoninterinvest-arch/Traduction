@@ -16,6 +16,7 @@ import { AppException } from '../common/app.exception';
 import { AppConfig } from '../config/env';
 import { JOB_REPOSITORY, type JobRepository } from '../database/job.repository';
 import { MetricsService } from '../metrics/metrics.service';
+import { paintBackgrounds } from './background';
 import { DocumentService, type PreparedPage } from './document.service';
 import { OcrEngine, TranslationEngine } from '../providers/engines';
 import { OBJECT_STORAGE, type ObjectStorage } from '../storage/storage.service';
@@ -203,7 +204,8 @@ export class PipelineService {
     if (current.status === 'rendering') {
       current = await this.persist(current, 'rendering');
       const fitted = fitBlocks(current.blocks, job.targetLang, prepared.height);
-      current = { ...current, blocks: fitted, status: 'done', error: null };
+      const painted = prepared.image ? await paintBackgrounds(prepared.image, fitted) : fitted;
+      current = { ...current, blocks: painted, status: 'done', error: null };
       await this.jobs.replacePage(current);
       this.metrics.pagesProcessed += 1;
     }

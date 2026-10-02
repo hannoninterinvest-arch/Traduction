@@ -11,3 +11,4 @@ export * from './script';
 export * from './grouping';
 export * from './fit-text';
 export * from './samples';
+export * from './page-html';
