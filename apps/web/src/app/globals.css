@@ -1,0 +1,52 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --paper: #f3eee4;
+  --ink: #1c1915;
+  --mist: #5f584e;
+  --line: #e4d9c8;
+  --tide: #0e6b68;
+  --clay: #c2512d;
+  --card: #fffdf8;
+  --font-sans:
+    'Noto Sans', 'Noto Naskh Arabic', 'Noto Sans Hebrew', 'Noto Sans Devanagari', 'Noto Sans Thai',
+    sans-serif;
+  --font-display: 'Iowan Old Style', 'Palatino Linotype', Palatino, 'Noto Naskh Arabic', serif;
+  color-scheme: light;
+}
+
+.dark {
+  --paper: #121411;
+  --ink: #f4efe6;
+  --mist: #b7b0a4;
+  --line: #2c312b;
+  --tide: #3dbeb8;
+  --clay: #e08a62;
+  --card: #1b1e19;
+  color-scheme: dark;
+}
+
+body {
+  background:
+    radial-gradient(
+      1200px 500px at 10% -10%,
+      color-mix(in srgb, var(--tide) 18%, transparent),
+      transparent 60%
+    ),
+    var(--paper);
+  color: var(--ink);
+  font-family: var(--font-sans);
+}
+
+:focus-visible {
+  outline: 2px solid var(--tide);
+  outline-offset: 3px;
+}
+
+.sheet-font {
+  font-family:
+    'Noto Sans', 'Noto Naskh Arabic', 'Noto Sans Hebrew', 'Noto Sans Devanagari', 'Noto Sans Thai',
+    'Noto Sans SC', 'Noto Sans TC', 'Noto Sans JP', 'Noto Sans KR', sans-serif;
+}

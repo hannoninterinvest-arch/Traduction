@@ -1,0 +1,12 @@
+node_modules
+**/.next
+**/dist
+**/*.tsbuildinfo
+.git
+**/.env
+**/.env.local
+coverage
+playwright-report
+test-results
+blob-report
+*.log

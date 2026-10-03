@@ -1,0 +1,73 @@
+services:
+  - type: web
+    name: doctranslate-api
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    plan: free
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: API_PUBLIC_URL
+        sync: false
+      - key: WEB_ORIGIN
+        sync: false
+      - key: DATA_DRIVER
+        sync: false
+      - key: DATABASE_URL
+        sync: false
+      - key: AUTH_MODE
+        sync: false
+      - key: TOKEN_SECRET
+        sync: false
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_SERVICE_ROLE_KEY
+        sync: false
+      - key: SUPABASE_JWT_SECRET
+        sync: false
+      - key: OCR_PROVIDER
+        sync: false
+      - key: OCR_FALLBACK_PROVIDER
+        sync: false
+      - key: TRANSLATION_PROVIDER
+        sync: false
+      - key: TRANSLATION_FALLBACK_PROVIDER
+        sync: false
+      - key: PDF_RENDERER
+        sync: false
+      - key: PREPROCESS_IMAGES
+        sync: false
+      - key: MAX_UPLOAD_BYTES
+        sync: false
+      - key: MAX_PAGES
+        sync: false
+      - key: MONTHLY_PAGE_QUOTA
+        sync: false
+      - key: RETENTION_HOURS
+        sync: false
+      - key: SWAGGER_ENABLED
+        sync: false
+      - key: OCR_SPACE_API_KEY
+        sync: false
+      - key: GOOGLE_API_KEY
+        sync: false
+      - key: DEEPL_API_KEY
+        sync: false
+      - key: ANTHROPIC_API_KEY
+        sync: false
+      - key: ANTHROPIC_MODEL
+        sync: false
+      - key: LIBRETRANSLATE_URL
+        sync: false
+      - key: LIBRETRANSLATE_API_KEY
+        sync: false
+      - key: ANCHOR_ENABLED
+        sync: false
+      - key: ANCHOR_RPC_URL
+        sync: false
+      - key: ANCHOR_PRIVATE_KEY
+        sync: false
+      - key: ANCHOR_CHAIN
+        sync: false
