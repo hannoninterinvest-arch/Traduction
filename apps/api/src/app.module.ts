@@ -8,6 +8,7 @@ import { AuthGuard } from './common/auth.guard';
 import { UserThrottlerGuard } from './common/throttler.guard';
 import { AppConfigModule } from './config/config.module';
 import { DatabaseModule } from './database/database.module';
+import { PostgresModule } from './database/postgres.module';
 import { HealthController } from './health/health.controller';
 import { IntegrityModule } from './integrity/integrity.module';
 import { JobsModule } from './jobs/jobs.module';
@@ -33,6 +34,7 @@ import { UsersController } from './users/users.controller';
       throttlers: [{ ttl: 60_000, limit: 120 }],
     }),
     ScheduleModule.forRoot(),
+    PostgresModule,
     DatabaseModule,
     StorageModule,
     MetricsModule,

@@ -29,8 +29,12 @@ export class UploadsController {
     @Headers('x-upload-path') path: string | undefined,
     @Headers('x-upload-token') token: string | undefined,
   ) {
-    if (this.config.dataDriver !== 'memory') {
-      throw new AppException('VALIDATION', 'Direct upload is only used without Supabase.', 400);
+    if (this.config.dataDriver === 'supabase') {
+      throw new AppException(
+        'VALIDATION',
+        'Direct upload is only used with the memory or Neon driver.',
+        400,
+      );
     }
     if (!path || !token || !path.startsWith(`${user.id}/`) || path.includes('..')) {
       throw new AppException('FORBIDDEN', 'That upload does not belong to this account.', 403);

@@ -1,5 +1,6 @@
 import { createHmac, randomUUID, timingSafeEqual } from 'node:crypto';
 import { Injectable, Logger } from '@nestjs/common';
+import type { Pool } from 'pg';
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 import { extensionForMime, type SignedUpload, type SupportedMime } from '@doctranslate/shared';
 import { AppException } from '../common/app.exception';
@@ -193,4 +194,100 @@ export class SupabaseStorage implements ObjectStorage {
   verifyUploadToken(): boolean {
     return false;
   }
+}
+
+/** Files live in the Neon `documents` table so the Render disk stays empty. */
+@Injectable()
+export class PostgresStorage implements ObjectStorage {
+  constructor(
+    private readonly config: AppConfig,
+    private readonly pool: Pool,
+  ) {}
+
+  async createUpload(
+    userId: string,
+    _filename: string,
+    contentType: SupportedMime,
+    size: number,
+  ): Promise<SignedUpload> {
+    this.assertSize(size);
+    const path = `${userId}/${randomUUID()}/original.${extensionForMime(contentType)}`;
+    return {
+      mode: 'direct',
+      path,
+      token: signStoragePath(this.config.tokenSecret, path, Date.now() + 15 * 60 * 1000),
+      signedUrl: null,
+      uploadUrl: `${this.config.apiPublicUrl}/uploads/direct`,
+      bucket: 'documents',
+    };
+  }
+
+  async save(path: string, body: Buffer, contentType: string): Promise<void> {
+    this.assertSafePath(path);
+    await this.pool.query(
+      `insert into documents (path, content_type, body)
+       values ($1, $2, $3)
+       on conflict (path) do update set content_type = excluded.content_type, body = excluded.body`,
+      [path, contentType, body],
+    );
+  }
+
+  async read(path: string): Promise<Buffer> {
+    const result = await this.pool.query<{ body: Buffer }>(
+      'select body from documents where path = $1',
+      [path],
+    );
+    const body = result.rows[0]?.body;
+    if (!body)
+      throw new AppException('NOT_FOUND', 'The uploaded file is no longer available.', 404);
+    return body;
+  }
+
+  async remove(path: string): Promise<void> {
+    await this.pool.query('delete from documents where path = $1', [path]);
+  }
+
+  async signedDownload(path: string): Promise<string | null> {
+    const found = await this.pool.query('select 1 from documents where path = $1', [path]);
+    if (found.rowCount === 0) return null;
+    const token = signStoragePath(this.config.tokenSecret, path, Date.now() + 10 * 60 * 1000);
+    const params = new URLSearchParams({ path, token });
+    return `${this.config.apiPublicUrl}/storage/object?${params.toString()}`;
+  }
+
+  verifyUploadToken(path: string, token: string): boolean {
+    return verifyStoragePath(this.config.tokenSecret, path, token);
+  }
+
+  private assertSize(size: number): void {
+    if (size > this.config.maxUploadBytes) {
+      throw new AppException(
+        'FILE_TOO_LARGE',
+        `That file is over the ${Math.round(this.config.maxUploadBytes / (1024 * 1024))} MB limit.`,
+        413,
+      );
+    }
+  }
+
+  private assertSafePath(path: string): void {
+    if (path.includes('..') || path.startsWith('/')) {
+      throw new AppException('VALIDATION', 'Invalid storage path.', 400);
+    }
+  }
+}
+
+function signStoragePath(secret: string, path: string, exp: number): string {
+  const sig = createHmac('sha256', secret).update(`${path}|${exp}`).digest('hex');
+  return `${exp}.${sig}`;
+}
+
+function verifyStoragePath(secret: string, path: string, token: string): boolean {
+  const [expRaw, sig] = token.split('.');
+  if (!expRaw || !sig) return false;
+  const exp = Number(expRaw);
+  if (!Number.isFinite(exp) || exp < Date.now()) return false;
+  const expected = createHmac('sha256', secret).update(`${path}|${exp}`).digest('hex');
+  const left = Buffer.from(sig);
+  const right = Buffer.from(expected);
+  return left.length === right.length && timingSafeEqual(left, right);
 }

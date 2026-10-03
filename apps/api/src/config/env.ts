@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 
-export type DataDriver = 'memory' | 'supabase';
+export type DataDriver = 'memory' | 'supabase' | 'postgres';
 export type AuthMode = 'dev' | 'supabase';
 export type OcrProviderName = 'mock' | 'ocrspace' | 'google' | 'tesseract';
 export type TranslationProviderName = 'mock' | 'google' | 'deepl' | 'anthropic' | 'libretranslate';
@@ -24,6 +24,7 @@ export class AppConfig {
   readonly webOrigins: string[];
   readonly logLevel: string;
   readonly dataDriver: DataDriver;
+  readonly databaseUrl: string;
   readonly authMode: AuthMode;
   readonly tokenSecret: string;
   readonly supabaseUrl: string;
@@ -62,7 +63,8 @@ export class AppConfig {
       .map((origin) => origin.trim())
       .filter(Boolean);
     this.logLevel = env.LOG_LEVEL ?? 'info';
-    this.dataDriver = env.DATA_DRIVER === 'supabase' ? 'supabase' : 'memory';
+    this.dataDriver = parseDataDriver(env.DATA_DRIVER);
+    this.databaseUrl = env.DATABASE_URL ?? '';
     this.authMode = env.AUTH_MODE === 'supabase' ? 'supabase' : 'dev';
     this.tokenSecret = env.TOKEN_SECRET ?? 'dev-only-token-secret-change-me';
     this.supabaseUrl = env.SUPABASE_URL ?? '';
@@ -102,7 +104,16 @@ export class AppConfig {
     if (this.dataDriver === 'supabase' && (!this.supabaseUrl || !this.supabaseServiceRoleKey)) {
       throw new Error('DATA_DRIVER=supabase requires SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY');
     }
+    if (this.dataDriver === 'postgres' && !this.databaseUrl) {
+      throw new Error('DATA_DRIVER=postgres requires DATABASE_URL (Neon connection string)');
+    }
   }
+}
+
+function parseDataDriver(value: string | undefined): DataDriver {
+  if (value === 'supabase') return 'supabase';
+  if (value === 'postgres' || value === 'neon') return 'postgres';
+  return 'memory';
 }
 
 function parseOcr(value: string | undefined): OcrProviderName {

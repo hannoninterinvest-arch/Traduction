@@ -6,13 +6,13 @@ The browser uploads the file straight to private storage. A small API on Render 
 
 ## Stack
 
-| Piece | Choice |
-| --- | --- |
-| Web | Next.js App Router, Tailwind, next-intl (`en`, `fr`, `ar` with RTL) |
-| API | NestJS, one in-process worker, no Redis |
-| Shared | TypeScript package for types, grouping, shrink-to-fit, and the hash chain |
-| Data | Supabase Auth, Postgres, and private Storage. A memory driver runs locally with no cloud account |
-| Providers | OCR and translation are swappable. The mock providers are the default, so the app runs without API keys |
+| Piece     | Choice                                                                                                                                                   |
+| --------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Web       | Next.js App Router, Tailwind, next-intl (`en`, `fr`, `ar` with RTL)                                                                                      |
+| API       | NestJS, one in-process worker, no Redis                                                                                                                  |
+| Shared    | TypeScript package for types, grouping, shrink-to-fit, and the hash chain                                                                                |
+| Data      | Neon Postgres for jobs, audit, and file bytes. Supabase remains an optional auth and storage backend. A memory driver runs locally with no cloud account |
+| Providers | OCR and translation are swappable. The mock providers are the default, so the app runs without API keys                                                  |
 
 There is no blockchain network in the default setup. An optional Integrity module stores SHA-256 hashes in an append-only hash chain. Anchoring that chain to Polygon Amoy or Sepolia stays off until `ANCHOR_ENABLED=true`.
 
@@ -22,7 +22,7 @@ There is no blockchain network in the default setup. An optional Integrity modul
 apps/web          Next.js UI, deployed to Vercel
 apps/api          NestJS API, deployed to Render
 packages/shared   Types, schemas, and layout algorithms
-supabase/migrations
+supabase/migrations   optional Supabase schema
 ```
 
 Sample pages used by tests are generated in `packages/shared/src/samples.ts`: English prose, Arabic (right to left), and a German table.
@@ -63,7 +63,8 @@ Web (`apps/web/.env.example`):
 
 API (`apps/api/.env.example`):
 
-- `DATA_DRIVER` `memory` or `supabase`
+- `DATA_DRIVER` `memory`, `postgres` (Neon), or `supabase`
+- `DATABASE_URL` Neon connection string, required when `DATA_DRIVER=postgres`
 - `AUTH_MODE` `dev` or `supabase`
 - `WEB_ORIGIN` comma-separated browser origins
 - `OCR_PROVIDER` `mock` (default), `ocrspace`, `google`, or `tesseract`
@@ -76,13 +77,24 @@ API (`apps/api/.env.example`):
 
 Provider keys are only required when you select that provider. The mock engines prefix translations with the target language code, which is enough to exercise the layout.
 
+## Neon Postgres
+
+Neon is the database for a free Render + Vercel deploy. It does not replace sign-in or provide a public file bucket. With `DATA_DRIVER=postgres`, the API stores job rows and the uploaded file bytes in Neon, so nothing is written to the Render disk and the file never goes through Vercel.
+
+1. Create a free project at https://neon.tech and copy the pooled connection string.
+2. On Render set `DATA_DRIVER=postgres` and `DATABASE_URL` to that string (it should include `sslmode=require`).
+3. Start the API. It creates `jobs`, `job_pages`, `audit_log`, `user_preferences`, and `documents` if they are missing.
+4. User ids are UUIDs. The local demo user is already a UUID. Production sign-in still uses Supabase Auth (`AUTH_MODE=supabase`) because Neon has no magic link or Google login.
+
+The free Neon plan has a small storage allowance. The default upload cap is 15 MB and 20 pages so a few documents fit. The compute sleeps when idle, like Render.
+
 ## Supabase
 
 1. Create a project.
 2. Run `supabase/migrations/001_init.sql`, then `002_auth.sql`, in the SQL editor.
 3. In Authentication, enable email magic links and Google. Add redirect URLs for `https://<your-vercel-domain>/auth/callback` and `http://localhost:3000/auth/callback`.
 4. Copy the project URL, anon key, service role key, and JWT secret into the env files.
-5. Set `DATA_DRIVER=supabase`, `AUTH_MODE=supabase`, and `NEXT_PUBLIC_AUTH_MODE=supabase`.
+5. For a Supabase database and storage bucket, set `DATA_DRIVER=supabase`. To keep jobs and files on Neon and use Supabase only for sign-in, set `DATA_DRIVER=postgres`, `AUTH_MODE=supabase`, and `NEXT_PUBLIC_AUTH_MODE=supabase`.
 
 The migration creates `jobs`, `job_pages`, `audit_log`, and `user_preferences`. Row Level Security limits each user to their own rows. The `documents` bucket is private; the API issues signed upload and download URLs. Audit rows cannot be updated or deleted. Deleting an account removes documents and preferences and leaves the hash chain, which stores hashes and actions, not document text.
 
@@ -94,10 +106,11 @@ The migration creates `jobs`, `job_pages`, `audit_log`, and `user_preferences`. 
 2. Set the env vars listed in `render.yaml`. Required for a real deploy:
    - `NODE_ENV=production`
    - `AUTH_MODE=supabase`
-   - `DATA_DRIVER=supabase`
+   - `DATA_DRIVER=postgres`
+   - `DATABASE_URL` the Neon pooled connection string
    - `API_PUBLIC_URL` the public Render URL
    - `WEB_ORIGIN` the Vercel origin
-   - `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`
+   - `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY` when sign-in uses Supabase
    - `TOKEN_SECRET` a long random string
 3. Leave `PDF_RENDERER=client` and `ANCHOR_ENABLED=false` on the free instance.
 4. Confirm `GET /health` returns `{"status":"ok"}`. `GET /wake` is a cheap endpoint the browser can hit while the free instance is waking up.
@@ -113,7 +126,7 @@ The container does not include Puppeteer or Chromium. Server-side PDF rendering 
 5. Build command: `cd ../.. && pnpm --filter @doctranslate/shared build && cd apps/web && pnpm build`
 6. Set `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `NEXT_PUBLIC_API_URL`, and `NEXT_PUBLIC_AUTH_MODE=supabase`.
 
-File bytes never go through Vercel. The browser asks the API for a signed upload URL and sends the file to Supabase Storage, or to the API’s direct-upload route when you are on the memory driver.
+File bytes never go through Vercel. With Neon, the browser uploads to the API on Render, and the API writes the bytes into Neon. With Supabase storage, the browser uploads straight to the private bucket.
 
 ## How a translation is built
 
@@ -142,7 +155,7 @@ You can click a block in the preview and change the translation or font size bef
 
 - Render’s free web service sleeps after about 15 minutes. The first request can take up to a minute. The UI says so when a request is slow. Work in progress is stored in Postgres (or memory, locally), and the worker resumes unfinished jobs on boot.
 - The free instance has about 512 MB of RAM and a fraction of a CPU. Pages are handled one at a time. Very large scans can still run out of memory. The default cap is 15 MB and 20 pages.
-- The disk is ephemeral. Files live in Supabase Storage, not on the instance.
+- The disk is ephemeral. With Neon, files live in the `documents` table. With Supabase, they live in the private bucket.
 - Vercel request bodies are limited to about 4.5 MB, which is why uploads go directly to storage.
 - OCR and translation vendors enforce their own free quotas. When a call fails and a fallback provider is set, the API tries that provider. The mock provider does not call a vendor.
 - Monthly page quota defaults to 100 pages per user. Set `MONTHLY_PAGE_QUOTA=0` to disable it.
